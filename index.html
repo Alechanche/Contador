@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Contador de Efectivo</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6d4aff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Contador">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:-apple-system,system-ui,sans-serif;
+    background:#f5f3ff; color:#1c1233;
+    padding: max(12px, env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+    max-width:480px; margin:0 auto;
+  }
+  .total-card {
+    background:linear-gradient(135deg,#6d4aff,#8f6bff);
+    color:#fff; border-radius:20px; padding:20px 24px; text-align:center;
+    position:sticky; top:8px; z-index:10;
+    box-shadow:0 8px 24px rgba(109,74,255,.35);
+  }
+  .total-card .label { font-size:13px; opacity:.85; letter-spacing:1px; text-transform:uppercase; }
+  .total-card .amount { font-size:42px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .total-card .pieces { font-size:13px; opacity:.85; margin-top:2px; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:1px;
+       color:#6d4aff; margin:22px 4px 8px; }
+  .row {
+    display:flex; align-items:center; gap:12px;
+    background:#fff; border-radius:14px; padding:10px 14px; margin-bottom:8px;
+    box-shadow:0 1px 3px rgba(28,18,51,.08);
+  }
+  .row .name { width:84px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .row input {
+    width:64px; text-align:center; font-size:18px; font-weight:700;
+    border:none; border-radius:10px; background:#f1edff; padding:10px 4px;
+    font-variant-numeric:tabular-nums;
+  }
+  .row input:focus { outline:2px solid #6d4aff; }
+  .row .sub { margin-left:auto; font-weight:600; color:#6d4aff;
+              font-variant-numeric:tabular-nums; min-width:72px; text-align:right; }
+  .actions { display:flex; gap:10px; margin-top:20px; }
+  button {
+    flex:1; border:none; border-radius:14px; padding:14px;
+    font-size:15px; font-weight:600; cursor:pointer;
+  }
+  .clear { background:#ffe9e9; color:#c0392b; }
+  .save  { background:#6d4aff; color:#fff; }
+  .saved-msg { text-align:center; font-size:13px; color:#4caf50; height:18px; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="total-card">
+  <div class="label">Total</div>
+  <div class="amount" id="total">$0.00</div>
+  <div class="pieces" id="pieces"></div>
+</div>
+
+<h2>🪙 Monedas</h2>
+<div id="coins"></div>
+
+<h2>💵 Billetes</h2>
+<div id="bills"></div>
+
+<div class="actions">
+  <button class="clear" onclick="limpiar()">🗑 Limpiar</button>
+  <button class="save" onclick="guardar()">💾 Guardar conteo</button>
+</div>
+<div class="saved-msg" id="savedMsg"></div>
+
+<script>
+const MONEDAS  = [0.05, 0.10, 0.25, 1.00, 2.00];
+const BILLETES = [5, 10, 20];
+
+// Recupera conteo guardado automáticamente
+const estado = JSON.parse(localStorage.getItem('conteo') || 'null')
+             || { monedas: {}, billetes: {} };
+
+function fmt(n){ return '$' + n.toFixed(2); }
+
+function crearFilas(contenedor, valores, tipo){
+  const div = document.getElementById(contenedor);
+  valores.forEach(v => {
+    const fila = document.createElement('div');
+    fila.className = 'row';
+    const nombre = (tipo==='monedas' ? '$' : '$') + v.toFixed(2);
+    fila.innerHTML = `
+      <span class="name">${nombre}</span>
+      <input type="text" inputmode="numeric" pattern="[0-9]*"
+             value="${estado[tipo][v] ?? 0}" data-v="${v}" data-t="${tipo}">
+      <span class="sub" id="sub-${tipo}-${v}">$0.00</span>`;
+    fila.querySelector('input').addEventListener('input', calcular);
+    div.appendChild(fila);
+  });
+}
+
+function calcular(){
+  let total = 0, nMonedas = 0, nBilletes = 0;
+  document.querySelectorAll('input').forEach(inp => {
+    const v = parseFloat(inp.dataset.v), tipo = inp.dataset.t;
+    const cant = parseInt(inp.value.replace(/\D/g,'')) || 0;
+    if (inp.value && parseInt(inp.value) !== cant) inp.value = cant;
+    estado[tipo][v] = cant;
+    const sub = v * cant;
+    document.getElementById(`sub-${tipo}-${v}`).textContent = fmt(sub);
+    total += sub;
+    if (tipo === 'monedas'){ nMonedas += cant; estado.monedas[v]=cant; }
+    else { nBilletes += cant; estado.billetes[v]=cant; }
+  });
+  document.getElementById('total').textContent = fmt(total);
+  document.getElementById('pieces').textContent =
+    nMonedas + ' monedas · ' + nBilletes + ' billetes';
+  localStorage.setItem('conteo', JSON.stringify(estado)); // autoguardado
+}
+
+function limpiar(){
+  if (!confirm('¿Reiniciar todo el conteo?')) return;
+  localStorage.removeItem('conteo');
+  location.reload();
+}
+
+function guardar(){
+  const total = document.getElementById('total').textContent;
+  const hist = JSON.parse(localStorage.getItem('historial') || '[]');
+  hist.unshift({ fecha: new Date().toLocaleString(), total });
+  localStorage.setItem('historial', JSON.stringify(hist.slice(0,50)));
+  const msg = document.getElementById('savedMsg');
+  msg.textContent = '✓ Conteo guardado (' + total + ')';
+  setTimeout(()=> msg.textContent = '', 3000);
+}
+
+crearFilas('coins', MONEDAS, 'monedas');
+crearFilas('bills', BILLETES, 'billetes');
+calcular();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
