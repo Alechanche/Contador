@@ -90,7 +90,7 @@ function crearFilas(contenedor, valores, tipo){
           `<option value="${i}" ${estado[tipo][v] === i ? 'selected' : ''}>${i}</option>`
         ).join('')}
       </select>
-      <span class="sub">$0.00</span>`;
+      <span class="sub" id="sub-${tipo}-${v}">$0.00</span>`;
     fila.querySelector('select').addEventListener('change', calcular);
     div.appendChild(fila);
   });
