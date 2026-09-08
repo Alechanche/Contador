@@ -35,22 +35,20 @@
     box-shadow:0 1px 3px rgba(28,18,51,.08);
   }
   .row .name { width:84px; font-weight:600; font-variant-numeric:tabular-nums; }
-  .row input {
-    width:64px; text-align:center; font-size:18px; font-weight:700;
+  .row select {
+    width:80px; text-align:center; font-size:18px; font-weight:700;
     border:none; border-radius:10px; background:#f1edff; padding:10px 4px;
     font-variant-numeric:tabular-nums;
+    appearance:none; -webkit-appearance:none;
   }
-  .row input:focus { outline:2px solid #6d4aff; }
   .row .sub { margin-left:auto; font-weight:600; color:#6d4aff;
               font-variant-numeric:tabular-nums; min-width:72px; text-align:right; }
-  .actions { display:flex; gap:10px; margin-top:20px; }
+  .actions { margin-top:20px; }
   button {
-    flex:1; border:none; border-radius:14px; padding:14px;
+    width:100%; border:none; border-radius:14px; padding:14px;
     font-size:15px; font-weight:600; cursor:pointer;
   }
   .clear { background:#ffe9e9; color:#c0392b; }
-  .save  { background:#6d4aff; color:#fff; }
-  .saved-msg { text-align:center; font-size:13px; color:#4caf50; height:18px; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -69,15 +67,12 @@
 
 <div class="actions">
   <button class="clear" onclick="limpiar()">🗑 Limpiar</button>
-  <button class="save" onclick="guardar()">💾 Guardar conteo</button>
 </div>
-<div class="saved-msg" id="savedMsg"></div>
 
 <script>
 const MONEDAS  = [0.05, 0.10, 0.25, 1.00, 2.00];
 const BILLETES = [5, 10, 20];
 
-// Recupera conteo guardado automáticamente
 const estado = JSON.parse(localStorage.getItem('conteo') || 'null')
              || { monedas: {}, billetes: {} };
 
@@ -88,50 +83,40 @@ function crearFilas(contenedor, valores, tipo){
   valores.forEach(v => {
     const fila = document.createElement('div');
     fila.className = 'row';
-    const nombre = (tipo==='monedas' ? '$' : '$') + v.toFixed(2);
     fila.innerHTML = `
-      <span class="name">${nombre}</span>
-      <input type="text" inputmode="numeric" pattern="[0-9]*"
-             value="${estado[tipo][v] ?? 0}" data-v="${v}" data-t="${tipo}">
-      <span class="sub" id="sub-${tipo}-${v}">$0.00</span>`;
-    fila.querySelector('input').addEventListener('input', calcular);
+      <span class="name">$${v.toFixed(2)}</span>
+      <select id="sel-${tipo}-${v}" data-v="${v}" data-t="${tipo}">
+        ${Array.from({length: 101}, (_, i) =>
+          `<option value="${i}" ${estado[tipo][v] === i ? 'selected' : ''}>${i}</option>`
+        ).join('')}
+      </select>
+      <span class="sub">$0.00</span>`;
+    fila.querySelector('select').addEventListener('change', calcular);
     div.appendChild(fila);
   });
 }
 
 function calcular(){
   let total = 0, nMonedas = 0, nBilletes = 0;
-  document.querySelectorAll('input').forEach(inp => {
-    const v = parseFloat(inp.dataset.v), tipo = inp.dataset.t;
-    const cant = parseInt(inp.value.replace(/\D/g,'')) || 0;
-    if (inp.value && parseInt(inp.value) !== cant) inp.value = cant;
+  document.querySelectorAll('select').forEach(sel => {
+    const v = parseFloat(sel.dataset.v), tipo = sel.dataset.t;
+    const cant = parseInt(sel.value);
     estado[tipo][v] = cant;
-    const sub = v * cant;
-    document.getElementById(`sub-${tipo}-${v}`).textContent = fmt(sub);
-    total += sub;
-    if (tipo === 'monedas'){ nMonedas += cant; estado.monedas[v]=cant; }
-    else { nBilletes += cant; estado.billetes[v]=cant; }
+    document.getElementById(`sub-${tipo}-${v}`).textContent = fmt(v * cant);
+    total += v * cant;
+    if (tipo === 'monedas') nMonedas += cant;
+    else nBilletes += cant;
   });
   document.getElementById('total').textContent = fmt(total);
   document.getElementById('pieces').textContent =
     nMonedas + ' monedas · ' + nBilletes + ' billetes';
-  localStorage.setItem('conteo', JSON.stringify(estado)); // autoguardado
+  localStorage.setItem('conteo', JSON.stringify(estado));
 }
 
 function limpiar(){
   if (!confirm('¿Reiniciar todo el conteo?')) return;
   localStorage.removeItem('conteo');
   location.reload();
-}
-
-function guardar(){
-  const total = document.getElementById('total').textContent;
-  const hist = JSON.parse(localStorage.getItem('historial') || '[]');
-  hist.unshift({ fecha: new Date().toLocaleString(), total });
-  localStorage.setItem('historial', JSON.stringify(hist.slice(0,50)));
-  const msg = document.getElementById('savedMsg');
-  msg.textContent = '✓ Conteo guardado (' + total + ')';
-  setTimeout(()=> msg.textContent = '', 3000);
 }
 
 crearFilas('coins', MONEDAS, 'monedas');
