@@ -11,67 +11,365 @@
 <meta name="apple-mobile-web-app-title" content="Contador">
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
+  /* ===== TEMAS ===== */
+  body[data-tema="lavanda"] {
+    --bg:#f5f3ff; --surface:#ffffff; --text:#1c1233; --muted:#7a6fa0;
+    --chip:#f1edff; --accent:#6d4aff; --grad:linear-gradient(135deg,#6d4aff,#8f6bff);
+  }
+  body[data-tema="menta"] {
+    --bg:#eefaf3; --surface:#ffffff; --text:#0f2e20; --muted:#5f8f76;
+    --chip:#dcf5e8; --accent:#00a86b; --grad:linear-gradient(135deg,#00a86b,#34d399);
+  }
+  body[data-tema="cielo"] {
+    --bg:#eff5ff; --surface:#ffffff; --text:#12233f; --muted:#5f7fae;
+    --chip:#dbe9ff; --accent:#2563eb; --grad:linear-gradient(135deg,#2563eb,#60a5fa);
+  }
+  body[data-tema="violeta"] {
+    --bg:#161020; --surface:#221a33; --text:#ece7f7; --muted:#9b8fc0;
+    --chip:#2e2347; --accent:#a58bff; --grad:linear-gradient(135deg,#7a52ff,#a58bff);
+  }
+  body[data-tema="bosque"] {
+    --bg:#0e1a13; --surface:#16251c; --text:#e2f2e8; --muted:#7fa58f;
+    --chip:#1f3328; --accent:#34d399; --grad:linear-gradient(135deg,#0f8a5b,#34d399);
+  }
+  body[data-tema="noche"] {
+    --bg:#11161d; --surface:#1b2330; --text:#e5ecf5; --muted:#8296ae;
+    --chip:#25303f; --accent:#5aa9ff; --grad:linear-gradient(135deg,#1d6fd6,#5aa9ff);
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body {
     font-family:-apple-system,system-ui,sans-serif;
-    background:#f5f3ff; color:#1c1233;
+    background:var(--bg); color:var(--text);
     padding: max(12px, env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
     max-width:480px; margin:0 auto;
+    transition:background .25s, color .25s;
   }
+
+  .cabecera { position:relative; margin-bottom:14px; }
+  .btn-config {
+    position:absolute; top:6px; right:14px; z-index:20;
+    width:44px; height:44px; border-radius:50%;
+    border:none; cursor:pointer; font-size:20px;
+    background:var(--surface); color:var(--text);
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+
   .total-card {
-    background:linear-gradient(135deg,#6d4aff,#8f6bff);
+    background:var(--grad);
     color:#fff; border-radius:20px; padding:20px 24px; text-align:center;
-    position:sticky; top:8px; z-index:10;
-    box-shadow:0 8px 24px rgba(109,74,255,.35);
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
   }
   .total-card .label { font-size:13px; opacity:.85; letter-spacing:1px; text-transform:uppercase; }
   .total-card .amount { font-size:42px; font-weight:700; font-variant-numeric:tabular-nums; }
   .total-card .pieces { font-size:13px; opacity:.85; margin-top:2px; }
+
   h2 { font-size:14px; text-transform:uppercase; letter-spacing:1px;
-       color:#6d4aff; margin:22px 4px 8px; }
+       color:var(--accent); margin:22px 4px 8px; }
   .row {
     display:flex; align-items:center; gap:12px;
-    background:#fff; border-radius:14px; padding:10px 14px; margin-bottom:8px;
-    box-shadow:0 1px 3px rgba(28,18,51,.08);
+    background:var(--surface); border-radius:14px; padding:10px 14px; margin-bottom:8px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
   }
   .row .name { width:84px; font-weight:600; font-variant-numeric:tabular-nums; }
   .row select {
     width:80px; text-align:center; font-size:18px; font-weight:700;
-    border:none; border-radius:10px; background:#f1edff; padding:10px 4px;
-    font-variant-numeric:tabular-nums;
+    border:none; border-radius:10px; background:var(--chip); color:var(--text);
+    padding:10px 4px; font-variant-numeric:tabular-nums;
     appearance:none; -webkit-appearance:none;
   }
-  .row .sub { margin-left:auto; font-weight:600; color:#6d4aff;
+  .row .sub { margin-left:auto; font-weight:600; color:var(--accent);
               font-variant-numeric:tabular-nums; min-width:72px; text-align:right; }
-  .actions { margin-top:20px; }
-  button {
-    width:100%; border:none; border-radius:14px; padding:14px;
+
+  .actions { display:flex; gap:10px; margin-top:20px; }
+  .actions button {
+    flex:1; border:none; border-radius:14px; padding:14px;
     font-size:15px; font-weight:600; cursor:pointer;
   }
-  .clear { background:#ffe9e9; color:#c0392b; }
+  .limpiar { background:rgba(192,57,43,.15); color:#e05b4c; }
+  .reporte { background:var(--accent); color:#fff; }
+
+  /* ===== PANELES ===== */
+  #overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.45);
+    opacity:0; pointer-events:none; transition:opacity .25s; z-index:40;
+  }
+  #panel, #panelRpt {
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    background:var(--surface); color:var(--text);
+    border-radius:24px 24px 0 0; padding:20px 20px calc(24px + env(safe-area-inset-bottom));
+    max-width:480px; margin:0 auto;
+    transform:translateY(105%); transition:transform .3s ease;
+    box-shadow:0 -8px 30px rgba(0,0,0,.3);
+  }
+  body.panel-abierto #overlay,
+  body.reporte-abierto #overlay { opacity:1; pointer-events:auto; }
+  body.panel-abierto #panel { transform:translateY(0); }
+  body.reporte-abierto #panelRpt { transform:translateY(0); }
+  .asa { width:40px; height:4px; border-radius:2px; background:var(--muted);
+         margin:0 auto 14px; }
+  .seccion-cfg { margin-bottom:18px; }
+  .seccion-cfg h3 { font-size:14px; color:var(--muted); margin-bottom:8px;
+                    text-transform:uppercase; letter-spacing:1px; }
+  .seg { display:flex; gap:6px; }
+  .seg button {
+    flex:1; border:none; border-radius:10px; padding:10px;
+    font-size:14px; font-weight:600; cursor:pointer;
+    background:var(--chip); color:var(--muted);
+  }
+  .seg button.activo { background:var(--accent); color:#fff; }
+  .swatch {
+    width:44px; height:44px; border-radius:50%; cursor:pointer;
+    border:3px solid transparent; flex-shrink:0;
+  }
+  .swatch.sel { border-color:var(--accent); }
+  .opcion {
+    flex:1; border:none; border-radius:10px; padding:12px;
+    font-size:15px; font-weight:600; cursor:pointer;
+    background:var(--chip); color:var(--muted);
+  }
+  .opcion.sel { background:var(--accent); color:#fff; }
+
+  /* ===== REPORTE ===== */
+  .rep-titulo { text-align:center; font-size:24px; font-weight:700;
+                letter-spacing:2px; margin:6px 0 2px; }
+  .rep-fecha { text-align:center; color:var(--muted); font-size:14px; margin-bottom:4px; }
+  .rep-seccion { font-size:14px; font-weight:700; color:var(--accent);
+                 text-transform:uppercase; letter-spacing:1px;
+                 margin:14px 4px 8px; }
+  .rep-fila {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 14px; border-radius:10px;
+    background:var(--chip); margin-bottom:6px;
+    font-variant-numeric:tabular-nums;
+  }
+  .rep-fila .cant { font-weight:700; min-width:40px; }
+  .rep-fila .den  { color:var(--muted); }
+  .rep-fila .sep  { color:var(--muted); opacity:.5; }
+  .rep-fila .tot  { font-weight:600; margin-left:auto; color:var(--accent); }
+  .rep-total {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:14px; padding:15px 18px; border-radius:14px;
+    background:var(--accent); color:#fff; font-size:20px; font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .rep-btns { display:flex; gap:10px; margin-top:18px; }
+  .rep-btns button { flex:1; border:none; border-radius:12px; padding:13px;
+                     font-size:15px; font-weight:600; cursor:pointer; }
+  .btn-imprimir { background:var(--accent); color:#fff; }
+  .btn-copiar  { background:var(--chip); color:var(--accent); }
+  .btn-cerrar  { background:var(--chip); color:var(--text); }
+  
+
+  /* Impresión: solo el reporte */
+  @media print {
+    body > *:not(#panelRpt) { display:none !important; }
+    #panelRpt {
+      position:static; transform:none; border-radius:0;
+      box-shadow:none; background:#fff; color:#000; padding:10px;
+    }
+    .rep-btns { display:none; }
+  }
 </style>
 </head>
-<body>
+<body data-tema="lavanda">
 
-<div class="total-card">
-  <div class="label">Total</div>
-  <div class="amount" id="total">$0.00</div>
-  <div class="pieces" id="pieces"></div>
+<div class="cabecera">
+  <button class="btn-config" onclick="abrirPanel()" aria-label="Configuración">⚙️</button>
+  <div class="total-card">
+    <div class="label" data-i18n="total">Total</div>
+    <div class="amount" id="total">$0.00</div>
+    <div class="pieces" id="pieces"></div>
+  </div>
 </div>
 
-<h2>🪙 Monedas</h2>
+<h2 data-i18n="monedas">🪙 Monedas</h2>
 <div id="coins"></div>
 
-<h2>💵 Billetes</h2>
+<h2 data-i18n="billetes">💵 Billetes</h2>
 <div id="bills"></div>
 
 <div class="actions">
-  <button class="clear" onclick="limpiar()">🗑 Limpiar</button>
+  <button class="limpiar" onclick="limpiar()" data-i18n="limpiar">🗑 Limpiar</button>
+  <button class="reporte" onclick="abrirPanelRep()" data-i18n="reporte">📄 Reporte</button>
+</div>
+
+<!-- Overlay compartido por ambos paneles -->
+<div id="overlay" onclick="cerrarPaneles()"></div>
+
+<!-- Panel de configuración -->
+<div id="panel">
+  <div class="asa"></div>
+
+  <div class="seccion-cfg">
+    <h3 data-i18n="tema">Tema</h3>
+    <div class="seg" style="margin-bottom:12px">
+      <button id="btnClaro" onclick="elegirModo('claro')" data-i18n="claro">☀️ Claro</button>
+      <button id="btnOscuro" onclick="elegirModo('oscuro')" data-i18n="oscuro">🌙 Oscuro</button>
+    </div>
+    <div id="swatches" style="display:flex;gap:10px;justify-content:center"></div>
+  </div>
+
+  <div class="seccion-cfg">
+    <h3 data-i18n="idioma">Idioma</h3>
+    <div style="display:flex;gap:10px">
+      <button class="opcion" id="btnEs" onclick="elegirIdioma('es')">🇪🇸 Español</button>
+      <button class="opcion" id="btnEn" onclick="elegirIdioma('en')">🇬🇧 English</button>
+    </div>
+  </div>
+
+  <div class="seccion-cfg">
+    <h3 data-i18n="idiomaReporte">Idioma del reporte</h3>
+    <div style="display:flex;gap:10px">
+      <button class="opcion" id="btnRAuto" onclick="elegirIdiomaRep('auto')" data-i18n="auto">Auto</button>
+      <button class="opcion" id="btnREs" onclick="elegirIdiomaRep('es')">🇪🇸 ES</button>
+      <button class="opcion" id="btnREn" onclick="elegirIdiomaRep('en')">🇬🇧 EN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Panel de reporte -->
+<div id="panelRpt" style="display:none">
+  <div class="asa"></div>
+  <div id="repContenido"></div>
+	<div class="rep-btns">
+    <button class="btn-copiar" onclick="copiarRep()" data-i18n="copiar">📋 Copiar</button>
+    <button class="btn-imprimir" onclick="imprimirRep()" data-i18n="imprimir">🖨 Imprimir / PDF</button>
+    <button class="btn-cerrar" onclick="cerrarPaneles()" data-i18n="cerrar">Cerrar</button>
+  </div>
 </div>
 
 <script>
+/* ================== TRADUCCIONES ================== */
+const TEXTOS = {
+  es: { total:'Total', monedas:'🪙 Monedas', billetes:'💵 Billetes',
+        limpiar:'🗑 Limpiar', reporte:'📄 Reporte',
+        tema:'Tema', idioma:'Idioma', idiomaReporte:'Idioma del reporte',
+        claro:'☀️ Claro', oscuro:'🌙 Oscuro', auto:'Auto',
+        imprimir:'🖨 Imprimir / PDF', cerrar:'Cerrar',
+        copiar:'📋 Copiar texto', copiado:'✓ Copiado al portapapeles',
+        tituloRep:'Cash Count', totalFinal:'TOTAL FINAL',
+        reiniciar:'¿Reiniciar todo el conteo?',
+        nombreSeccion:{ monedas:'Monedas', billetes:'Billetes' },
+        piezas:(m,b)=> m+' monedas · '+b+' billetes' },
+  en: { total:'Total', monedas:'🪙 Coins', billetes:'💵 Bills',
+        limpiar:'🗑 Clear', reporte:'📄 Report',
+        tema:'Theme', idioma:'Language', idiomaReporte:'Report language',
+        claro:'☀️ Light', oscuro:'🌙 Dark', auto:'Auto',
+        imprimir:'🖨 Print / PDF', cerrar:'Close',
+        copiar:'📋 Copy text', copiado:'✓ Copied to clipboard',
+        tituloRep:'Cash Count', totalFinal:'GRAND TOTAL',
+        reiniciar:'Reset the whole count?',
+        nombreSeccion:{ monedas:'Coins', billetes:'Bills' },
+        piezas:(m,b)=> m+' coins · '+b+' bills' }
+};
+const MESES = {
+  es:['enero','febrero','marzo','abril','mayo','junio','julio',
+      'agosto','septiembre','octubre','noviembre','diciembre'],
+  en:['January','February','March','April','May','June','July',
+      'August','September','October','November','December']
+};
+
+let idioma = localStorage.getItem('idioma') || 'es';
+let idiomaRep = localStorage.getItem('idiomaRep') || 'auto';
+
+/* ================== IDIOMA ================== */
+function idiomaDelRep(){ return idiomaRep === 'auto' ? idioma : idiomaRep; }
+
+function aplicarIdioma(){
+  const t = TEXTOS[idioma];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t[el.dataset.i18n];
+  });
+  localStorage.setItem('idioma', idioma);
+  document.documentElement.lang = idioma;
+  document.getElementById('btnEs').classList.toggle('sel', idioma==='es');
+  document.getElementById('btnEn').classList.toggle('sel', idioma==='en');
+  calcular();
+}
+
+function elegirIdioma(l){ idioma = l; aplicarIdioma(); }
+
+function elegirIdiomaRep(l){
+  idiomaRep = l;
+  localStorage.setItem('idiomaRep', l);
+  document.getElementById('btnRAuto').classList.toggle('sel', l==='auto');
+  document.getElementById('btnREs').classList.toggle('sel', l==='es');
+  document.getElementById('btnREn').classList.toggle('sel', l==='en');
+}
+
+/* ================== TEMAS ================== */
+const TEMAS = {
+  claro: [
+    { id:'lavanda', color:'#6d4aff' },
+    { id:'menta',   color:'#00a86b' },
+    { id:'cielo',   color:'#2563eb' },
+  ],
+  oscuro: [
+    { id:'violeta', color:'#a58bff' },
+    { id:'bosque',  color:'#34d399' },
+    { id:'noche',   color:'#5aa9ff' },
+  ]
+};
+
+function temaInicial() {
+  const guardado = JSON.parse(localStorage.getItem('tema') || 'null');
+  if (guardado) return guardado;
+  const oscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return { modo: oscuro ? 'oscuro' : 'claro', tema: oscuro ? 'violeta' : 'lavanda' };
+}
+
+function aplicarTema(t) {
+  document.body.dataset.tema = t.tema;
+  document.querySelector('meta[name=theme-color]').content =
+    t.modo === 'oscuro' ? '#161020' : '#6d4aff';
+  localStorage.setItem('tema', JSON.stringify(t));
+  pintarSwatches(t);
+  document.getElementById('btnClaro').classList.toggle('activo', t.modo === 'claro');
+  document.getElementById('btnOscuro').classList.toggle('activo', t.modo === 'oscuro');
+}
+
+function pintarSwatches(t) {
+  const cont = document.getElementById('swatches');
+  cont.innerHTML = '';
+  TEMAS[t.modo].forEach(tema => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (tema.id === t.tema ? ' sel' : '');
+    b.style.background = tema.color;
+    b.onclick = () => aplicarTema({ ...t, tema: tema.id });
+    cont.appendChild(b);
+  });
+}
+
+function elegirModo(modo) {
+  if (TEMAS[modo].some(x => x.id === document.body.dataset.tema)) {
+    aplicarTema({ modo, tema: document.body.dataset.tema });
+  } else {
+    aplicarTema({ modo, tema: TEMAS[modo][0].id });
+  }
+}
+
+/* ================== PANELES ================== */
+function abrirPanel(){
+  document.body.classList.remove('reporte-abierto');
+  document.getElementById('panelRpt').style.display = 'none';
+  document.body.classList.add('panel-abierto');
+}
+function abrirPanelRep(){
+  document.body.classList.remove('panel-abierto');
+  document.getElementById('panelRpt').style.display = 'block';
+  construirReporte();
+  document.body.classList.add('reporte-abierto');
+}
+function cerrarPaneles(){
+  document.body.classList.remove('panel-abierto','reporte-abierto');
+  setTimeout(() => {
+    document.getElementById('panelRpt').style.display = 'none';
+  }, 300);
+}
+/* ================== CONTEO ================== */
 const MONEDAS  = [0.05, 0.10, 0.25, 1.00, 2.00];
-const BILLETES = [5, 10, 20];
+const BILLETES = [5, 10, 20, 50, 100];
 
 const estado = JSON.parse(localStorage.getItem('conteo') || 'null')
              || { monedas: {}, billetes: {} };
@@ -108,20 +406,102 @@ function calcular(){
     else nBilletes += cant;
   });
   document.getElementById('total').textContent = fmt(total);
-  document.getElementById('pieces').textContent =
-    nMonedas + ' monedas · ' + nBilletes + ' billetes';
+  document.getElementById('pieces').textContent = TEXTOS[idioma].piezas(nMonedas, nBilletes);
   localStorage.setItem('conteo', JSON.stringify(estado));
 }
 
 function limpiar(){
-  if (!confirm('¿Reiniciar todo el conteo?')) return;
+  if (!confirm(TEXTOS[idioma].reiniciar)) return;
   localStorage.removeItem('conteo');
   location.reload();
 }
 
+/* ================== REPORTE ================== */
+function reporteTexto(){
+  const idi = idiomaDelRep();
+  const t = TEXTOS[idi];
+  const sep = '─'.repeat(24);
+  let s = t.tituloRep + '\n';
+  s += fechaRep() + '\n\n';
+  s += t.nombreSeccion.monedas + ':\n';
+  let nMon = 0;
+  MONEDAS.forEach(v => {
+    const cant = estado.monedas[v] ?? 0;
+    if (cant > 0) s += `${cant} x $${v.toFixed(2)} = ${fmt(v * cant)}\n`;
+  });
+  const nBil = BILLETES.reduce((a,v) => a + (estado.billetes[v] ?? 0), 0);
+  s += '\n' + t.nombreSeccion.billetes + ':\n';
+  BILLETES.forEach(v => {
+    const cant = estado.billetes[v] ?? 0;
+    if (cant > 0) s += `${cant} x $${v.toFixed(2)} = ${fmt(v * cant)}\n`;
+  });
+  function suma(valores, tipo){
+    return valores.reduce((acc, v) => acc + v * (estado[tipo][v] ?? 0), 0);
+  }
+  const grand = suma(MONEDAS,'monedas') + suma(BILLETES,'billetes');
+  s += '\n' + t.totalFinal + ': ' + fmt(grand);
+  return s;
+}
+
+async function copiarRep(){
+  const txt = reporteTexto();
+  try {
+    await navigator.clipboard.writeText(txt);
+    alert(TEXTOS[idioma].copiado);
+  } catch (e) {
+    // Plan B para navegadores viejos: selecciona un textarea oculto
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert(TEXTOS[idioma].copiado);
+  }
+}
+function fechaRep(){
+  const f = new Date();
+  const dd = String(f.getDate()).padStart(2,'0');
+  const mes = MESES[idiomaDelRep()][f.getMonth()];
+  return `${dd}/${mes}/${f.getFullYear()}`;
+}
+
+function construirReporte(){
+  const idi = idiomaDelRep();
+  const t = TEXTOS[idi];
+  function seccion(valores, tipo){
+    let h = '';
+    valores.forEach(v => {
+      const cant = estado[tipo][v] ?? 0;
+      h += `<div class="rep-fila">
+              <span class="cant">${cant}×</span>
+              <span class="den">$${v.toFixed(2)}</span>
+              <span class="tot">${fmt(v * cant)}</span>
+            </div>`;
+    });
+    return h;
+  }
+  function suma(valores, tipo){
+    return valores.reduce((acc, v) => acc + v * (estado[tipo][v] ?? 0), 0);
+  }
+  const grand = suma(MONEDAS,'monedas') + suma(BILLETES,'billetes');
+  document.getElementById('repContenido').innerHTML = `
+    <div class="rep-titulo">${t.tituloRep}</div>
+    <div class="rep-fecha">${fechaRep()}</div>
+    <div class="rep-seccion">🪙 ${t.nombreSeccion.monedas}</div>
+    ${seccion(MONEDAS,'monedas')}
+    <div class="rep-seccion">💵 ${t.nombreSeccion.billetes}</div>
+    ${seccion(BILLETES,'billetes')}
+    <div class="rep-total"><span>${t.totalFinal}</span><span>${fmt(grand)}</span></div>`;
+}
+
+function imprimirRep(){ window.print(); }
+
+/* ================== INICIO ================== */
 crearFilas('coins', MONEDAS, 'monedas');
 crearFilas('bills', BILLETES, 'billetes');
 calcular();
+aplicarTema(temaInicial());
+aplicarIdioma();
+elegirIdiomaRep(idiomaRep);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
