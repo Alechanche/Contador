@@ -1,4 +1,4 @@
-const CACHE = 'contador-v3';
+const CACHE = 'contador-v4';
 const ARCHIVOS = ['./', './index.html', './manifest.json', './icon-180.png'];
 
 self.addEventListener('install', e => {
